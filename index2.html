@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HTML Editor</title>
+<style>
+    #editor {
+        width: 100%;
+        min-height: 300px;
+        border: 1px solid #ccc;
+        padding: 10px;
+        margin-bottom: 20px;
+    }
+    img {
+        max-width: 100%;
+        height: auto;
+        margin-bottom: 10px;
+    }
+</style>
+</head>
+<body>
+
+<div id="editor" contenteditable="true">
+    <h1>Welcome to HTML Editor</h1>
+    <p>Start typing here...</p>
+</div>
+
+<input type="file" id="fileInput" multiple style="display: none;">
+
+<button onclick="addImage()">Add Image</button>
+<button onclick="downloadHTML()">Download as HTML</button>
+<button onclick="downloadPDF()">Download as PDF</button>
+
+<script>
+    function addImage() {
+        document.getElementById('fileInput').click();
+    }
+
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+        const files = event.target.files;
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                document.getElementById('editor').appendChild(img);
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    function downloadHTML() {
+        const htmlContent = document.getElementById('editor').innerHTML;
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'index.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    function downloadPDF() {
+        const htmlContent = document.getElementById('editor').innerHTML;
+        const blob = new Blob([htmlContent], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        iframe.onload = function() {
+            const doc = iframe.contentWindow.document;
+            doc.body.style.margin = '0';
+            doc.body.style.fontFamily = 'Arial, sans-serif';
+            const pdf = doc.createElement('pdf');
+            pdf.setAttribute('style', 'width:100%;height:auto;');
+            pdf.setAttribute('src', url);
+            doc.body.appendChild(pdf);
+            pdfjsLib.getDocument(url).then(function(pdfDoc) {
+                const pdfData = pdfDoc.numPages;
+                const pdfFile = new jsPDF();
+                for (let i = 1; i <= pdfData; i++) {
+                    pdfDoc.getPage(i).then(function(page) {
+                        const viewport = page.getViewport({ scale: 1 });
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+                        const renderContext = {
+                            canvasContext: ctx,
+                            viewport: viewport
+                        };
+                        page.render(renderContext).promise.then(function() {
+                            pdfFile.addImage(canvas.toDataURL('image/jpeg', 1.0), 'JPEG', 0, 0, 210, 297);
+                            if (i === pdfData) {
+                                pdfFile.save('index.pdf');
+                                document.body.removeChild(iframe);
+                            } else {
+                                pdfFile.addPage();
+                            }
+                        });
+                    });
+                }
+            });
+        };
+    }
+</script>
+
+</body>
+</html>
